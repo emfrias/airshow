@@ -1,0 +1,4 @@
+flask
+requests
+numpy
+psycopg2-binary

@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: flighttracking
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./test_data.sql:/docker-entrypoint-initdb.d/test_data.sql
+
+  app:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/flighttracking
+    ports:
+      - "7878:7878"
+    depends_on:
+      - db
