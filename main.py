@@ -25,10 +25,14 @@ conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
 def update_users_from_db():
-    cursor.execute("SELECT id, topic, latitude, longitude, altitude_feet, min_distance, min_angle FROM users")
+    print('updating user from db')
+    cursor.execute("SELECT id, topic, lat, lon, alt_feet, min_distance, min_angle FROM users JOIN last_locations USING (id)")
+    print('executed')
     rows = cursor.fetchall()
+    print(rows)
     users = {}
     for row in rows:
+        print('got user')
         users[row[0]] = {
             "topic": row[1],
             "lat": row[2],
@@ -40,7 +44,7 @@ def update_users_from_db():
     return users
 
 def update_user_location(user_id, lat, lon, alt):
-    cursor.execute("UPDATE users SET latitude=%s, longitude=%s, altitude=%s WHERE id=%s", (lat, lon, alt, user_id))
+    cursor.execute("UPDATE last_locations SET lat=%s, lon=%s, alt_feet=%s WHERE id=(SELECT id FROM users WHERE username=%s)", (lat, lon, alt, user_id))
     conn.commit()
 
 def get_aircraft_data(user):
@@ -54,19 +58,28 @@ def get_aircraft_data(user):
 def process_aircraft_for_user(user, aircraft_list):
     notifications = []
     for aircraft in aircraft_list:
-        if 'alt_geom' not in aircraft:
-            logger.debug(f"Skipping aircraft {aircraft['hex']} with no alt_geom (potentially on the ground)")
+        if aircraft.get('alt_baro') == 'ground':
+            logger.debug(f"Skipping aircraft {aircraft['hex']} on the ground")
             continue
 
-        ac_data = {
-            "lat": aircraft['lat'],
-            "lon": aircraft['lon'],
-            "alt": aircraft['alt_geom'],
-            "gs": aircraft['gs'],
-            "track": aircraft['track'],
-            "desc": aircraft['desc'],
-            "hex": aircraft['hex']
-        }
+        if 'alt_geom' not in aircraft:
+            logger.debug(f"Skipping aircraft {aircraft['hex']} with no alt_geom (potentially on the ground)")
+            # Comment: We might want to compensate alt_baro with the local altimeter setting in the future
+            continue
+
+        try:
+            ac_data = {
+                "lat": aircraft['lat'],
+                "lon": aircraft['lon'],
+                "alt": aircraft['alt_geom'],
+                "gs": aircraft['gs'],
+                "track": aircraft['track'],
+                "desc": aircraft['desc'],
+                "hex": aircraft['hex']
+            }
+        except KeyError as e:
+            logging.error(f"Error parsing aircraft data: {aircraft}")
+            continue
 
         future_position = predict_future_position(
             ac_data['lat'], ac_data['lon'], ac_data['alt'],
@@ -121,7 +134,9 @@ def main():
     users = update_users_from_db()
 
     while True:
+        logger.debug('here')
         for user_id, user in users.items():
+            logger.debug('there')
             aircraft_list = get_aircraft_data(user)
             notifications = process_aircraft_for_user(user, aircraft_list)
             for notification in notifications:
@@ -140,4 +155,10 @@ def main():
         time.sleep(60)
 
 if __name__ == '__main__':
+    # Start Flask app in a separate thread
+    from threading import Thread
+    thread = Thread(target=lambda: app.run(port=7878, host="0.0.0.0"))
+    thread.start()
+
+    # Start the main loop
     main()
