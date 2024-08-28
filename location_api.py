@@ -9,13 +9,14 @@ def receive_location():
     user_email = request.headers.get('X-Limit-U')
     data = request.json
 
-    if data['_type'] == 'location':
-        lat = data['lat']
-        lon = data['lon']
-        alt = data['alt'] * 3.28084  # Convert meters to feet
+    if data['_type'] != 'location':
+        return '', 204
 
-        session = Session()
+    lat = data['lat']
+    lon = data['lon']
+    alt = data['alt'] * 3.28084  # Convert meters to feet
 
+    with Session() as session:
         # Map email to user ID and update location
         user = session.query(User).filter_by(email=user_email).first()
         if user:
@@ -30,8 +31,9 @@ def receive_location():
 
             session.commit()
 
-        session.close()
+        # when you publish your location, the server is supposed to return an array with
+        # the location of all of your friends.  We don't have any friends, so always
+        # return an empty array
         return jsonify([])
 
-    return '', 204
 
