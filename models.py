@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -14,6 +14,8 @@ class User(Base):
     min_angle = Column(Float, nullable=False)
     # Add other user-specific fields as needed
 
+    notifications = relationship('Notification', back_populates='user')
+
 class LastLocation(Base):
     __tablename__ = 'last_locations'
     id = Column(Integer, primary_key=True)
@@ -25,3 +27,13 @@ class LastLocation(Base):
 
 User.location = relationship("LastLocation", uselist=False, back_populates="user")
 
+class Notification(Base):
+    __tablename__ = 'notifications'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    timestamp = Column(DateTime, nullable=False)
+    aircraft_hex = Column(String(10), nullable=False)
+    notification_text = Column(Text, nullable=False)
+
+    user = relationship('User', back_populates='notifications')

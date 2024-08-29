@@ -4,9 +4,42 @@ from api import app  # Import the Flask app from api.py
 from db import update_users_from_db, get_location_for_user, update_user_location
 from aircraft import get_aircraft_data, process_aircraft_for_user
 from config import Session, logger
-from models import User
+from models import User, Notification
 import requests
 import location_api
+from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta
+
+def should_send_notification(session, user, aircraft_hex):
+    fifteen_minutes_ago = datetime.utcnow() - timedelta(minutes=15)
+
+    recent_notifications = session.query(Notification).filter(
+        Notification.user_id == user.id,
+        Notification.aircraft_hex == aircraft_hex,
+        Notification.timestamp >= fifteen_minutes_ago
+    ).count()
+
+    return recent_notifications == 0
+
+def send_notification(session, user, aircraft_hex, notification_text):
+    # Insert the notification into the database
+    new_notification = Notification(
+        user_id=user.id,
+        timestamp=datetime.utcnow(),
+        aircraft_hex=aircraft_hex,
+        notification_text=notification_text
+    )
+    session.add(new_notification)
+    session.commit()
+
+    # Send the notification using ntfy.sh
+    ntfy_url = f"https://ntfy.sh/{user.topic}"
+    response = requests.post(ntfy_url, data=notification_text.encode('utf-8'))
+    if response.status_code == 200:
+        logger.info(f"Sent notification to {user.topic}")
+    else:
+        logger.error(f"Failed to send notification to {user.topic}: {response.status_code}")
 
 def main():
     with Session() as session:
@@ -26,17 +59,12 @@ def main():
                 aircraft_list = get_aircraft_data(user, location)
                 notifications = process_aircraft_for_user(user, location, aircraft_list)
                 for notification in notifications:
-                    # Send the notification using ntfy.sh
-                    ntfy_url = f"https://ntfy.sh/{user.topic}"
-                    message = f"Aircraft {notification['description']} is approaching: " \
-                              f"{notification['distance']:.2f} miles away, " \
-                              f"{notification['time_to_closest']:.0f} seconds to closest approach, " \
-                              f"bearing {notification['bearing']:.1f} degrees."
-                    response = requests.post(ntfy_url, data=message.encode('utf-8'))
-                    if response.status_code == 200:
-                        logger.info(f"Sent notification to {user.topic}")
-                    else:
-                        logger.error(f"Failed to send notification to {user.topic}: {response.status_code}")
+                    if should_send_notification(session, user, notification['hex']):
+                        message = f"Aircraft {notification['description']} is approaching: " \
+                                  f"{notification['distance']:.2f} miles away, " \
+                                  f"{notification['time_to_closest']:.0f} seconds to closest approach, " \
+                                  f"bearing {notification['bearing']:.1f} degrees."
+                        send_notification(session, user, notification['hex'], message)
 
             # Sleep for a while before the next loop iteration
             time.sleep(60)  # Adjust the sleep time as needed
