@@ -1,11 +1,12 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import User, Notification
 from config import Session
 from flask_jwt_extended import create_access_token, JWTManager, get_jwt_identity, jwt_required
 from db import get_user_by_id
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='/webapp')
 app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False # timedelta(hours=1)
 jwt = JWTManager(app)
@@ -97,3 +98,12 @@ def user_notifications():
             ],
             "total_count": total_count
         }), 200
+
+# Serve static files for the web app
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_static(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
