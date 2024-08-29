@@ -12,6 +12,9 @@ def get_location_for_user(session, user):
 def get_user_by_email(session, email):
     return session.query(User).filter(User.email == email).first()
 
+def get_user_by_id(session, id):
+    return session.query(User).filter(User.id == id).first()
+
 def update_user_location(session, user_id, lat, lon, alt):
     location = session.query(LastLocation).filter(LastLocation.user_id == user_id).first()
     if location:

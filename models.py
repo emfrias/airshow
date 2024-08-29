@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from werkzeug.security import generate_password_hash, check_password_hash
 
 Base = declarative_base()
 
@@ -9,9 +10,9 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    topic = Column(String, nullable=False)
-    min_distance = Column(Float, nullable=False)
-    min_angle = Column(Float, nullable=False)
+    topic = Column(String, nullable=True)
+    min_distance = Column(Float, nullable=False, default = 3.0)
+    min_angle = Column(Float, nullable=False, default = 20.0)
     # Add other user-specific fields as needed
 
     notifications = relationship('Notification', back_populates='user')

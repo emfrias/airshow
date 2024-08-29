@@ -8,8 +8,7 @@ from models import User, Notification
 import requests
 import location_api
 from datetime import datetime, timedelta
-
-from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash
 
 def should_send_notification(session, user, aircraft_hex):
     fifteen_minutes_ago = datetime.utcnow() - timedelta(minutes=15)
@@ -44,7 +43,7 @@ def send_notification(session, user, aircraft_hex, notification_text):
 def main():
     with Session() as session:
         if not session.query(User).filter_by(email="foo@bar.com").first():
-            session.add(User(email="foo@bar.com", password_hash='', topic='private_airshow_foo_bar_com', min_distance=3.0, min_angle=20.0))
+            session.add(User(email="foo@bar.com", password_hash=generate_password_hash('baz'), topic='private_airshow_foo_bar_com', min_distance=3.0, min_angle=20.0))
             session.commit()
         while True:
             # Update users from the database
@@ -58,13 +57,16 @@ def main():
                     continue
                 aircraft_list = get_aircraft_data(user, location)
                 notifications = process_aircraft_for_user(user, location, aircraft_list)
-                for notification in notifications:
-                    if should_send_notification(session, user, notification['hex']):
-                        message = f"Aircraft {notification['description']} is approaching: " \
-                                  f"{notification['distance']:.2f} miles away, " \
-                                  f"{notification['time_to_closest']:.0f} seconds to closest approach, " \
-                                  f"bearing {notification['bearing']:.1f} degrees."
-                        send_notification(session, user, notification['hex'], message)
+                if user.topic:
+                    for notification in notifications:
+                        if should_send_notification(session, user, notification['hex']):
+                            message = f"Aircraft {notification['description']} is approaching: " \
+                                      f"{notification['distance']:.2f} miles away, " \
+                                      f"{notification['time_to_closest']:.0f} seconds to closest approach, " \
+                                      f"bearing {notification['bearing']:.1f} degrees."
+                            send_notification(session, user, notification['hex'], message)
+                else:
+                    logger.debug(f"Not sending notifications for user {user.email} because they have no topic set")
 
             # Sleep for a while before the next loop iteration
             time.sleep(60)  # Adjust the sleep time as needed
