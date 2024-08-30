@@ -28,6 +28,9 @@ def compute_3d_distance(lat1, lon1, alt1, lat2, lon2, alt2):
     altitude_difference = abs(alt1 - alt2)
     return np.sqrt(surface_distance**2 + altitude_difference**2)
 
+def compute_2d_distance(lat1, lon1, lat2, lon2):
+    return haversine_distance(lat1, lon1, lat2, lon2)
+
 # Function to compute the angle above the horizon
 def compute_angle_above_horizon(user_pos, aircraft_pos):
     horizontal_distance = haversine_distance(user_pos[0], user_pos[1], aircraft_pos[0], aircraft_pos[1])

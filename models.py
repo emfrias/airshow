@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -11,11 +12,11 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     topic = Column(String, nullable=True)
-    min_distance = Column(Float, nullable=False, default = 3.0)
-    min_angle = Column(Float, nullable=False, default = 20.0)
     # Add other user-specific fields as needed
 
+    location = relationship("LastLocation", uselist=False, back_populates="user")
     notifications = relationship('Notification', back_populates='user')
+    filters = relationship('Filter', back_populates='user')
 
 class LastLocation(Base):
     __tablename__ = 'last_locations'
@@ -25,8 +26,6 @@ class LastLocation(Base):
     lon = Column(Float, nullable=False)
     alt = Column(Float, nullable=False)
     user = relationship("User", back_populates="location")
-
-User.location = relationship("LastLocation", uselist=False, back_populates="user")
 
 class Notification(Base):
     __tablename__ = 'notifications'
@@ -38,3 +37,25 @@ class Notification(Base):
     notification_text = Column(Text, nullable=False)
 
     user = relationship('User', back_populates='notifications')
+
+class Filter(Base):
+    __tablename__ = 'filters'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    name = Column(String, nullable=False)
+    order = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user = relationship("User", back_populates="filters")
+    conditions = relationship("Condition", back_populates="filter", cascade="all, delete-orphan")
+
+
+class Condition(Base):
+    __tablename__ = 'conditions'
+    id = Column(Integer, primary_key=True)
+    filter_id = Column(Integer, ForeignKey('filters.id'), nullable=False)
+    condition_type = Column(String, nullable=False)
+    value = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    filter = relationship("Filter", back_populates="conditions")

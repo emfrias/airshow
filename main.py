@@ -4,7 +4,7 @@ from api import app  # Import the Flask app from api.py
 from db import update_users_from_db, get_location_for_user, update_user_location
 from aircraft import get_aircraft_data, process_aircraft_for_user
 from config import Session, logger
-from models import User, Notification
+from models import User, Notification, Filter, Condition
 import requests
 import location_api
 from datetime import datetime, timedelta
@@ -43,7 +43,40 @@ def send_notification(session, user, aircraft_hex, notification_text):
 def main():
     with Session() as session:
         if not session.query(User).filter_by(email="foo@bar.com").first():
-            session.add(User(email="foo@bar.com", password_hash=generate_password_hash('baz'), topic='private_airshow_foo_bar_com', min_distance=3.0, min_angle=20.0))
+            # Create the user
+            user = User(
+                email="foo@bar.com",
+                password_hash=generate_password_hash('baz'),
+                topic='private_airshow_foo_bar_com'
+            )
+
+            # Create a filter for the user
+            filter = Filter(
+                user=user,
+                name="3D Distance and Angle Alert",
+                order=1
+            )
+
+            # Add conditions to the filter
+            condition_3d_distance = Condition(
+                filter=filter,
+                condition_type='3d_distance',
+                value={"max_distance": 3.0}
+            )
+
+            condition_angle_above_horizon = Condition(
+                filter=filter,
+                condition_type='angle_above_horizon',
+                value={"min_angle": 20.0}
+            )
+
+            # Add everything to the session
+            session.add(user)
+            session.add(filter)
+            session.add(condition_3d_distance)
+            session.add(condition_angle_above_horizon)
+
+            # Commit the transaction
             session.commit()
         while True:
             # Update users from the database
@@ -56,7 +89,7 @@ def main():
                     logger.debug(f"No location on file for user {user.email}, skipping")
                     continue
                 aircraft_list = get_aircraft_data(user, location)
-                notifications = process_aircraft_for_user(user, location, aircraft_list)
+                notifications = process_aircraft_for_user(session, user, location, aircraft_list)
                 if user.topic:
                     for notification in notifications:
                         if should_send_notification(session, user, notification['hex']):
