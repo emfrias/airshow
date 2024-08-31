@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import User, Notification
+from models import User, Notification, Filter, Condition
 from config import Session
 from flask_jwt_extended import create_access_token, JWTManager, get_jwt_identity, jwt_required
 from db import get_user_by_id
@@ -58,12 +58,8 @@ def user_preferences():
         if request.method == 'POST':
             data = request.json
             topic = data.get('topic')
-            min_distance = data.get('min_distance')
-            min_angle = data.get('min_angle')
 
             user.topic = topic
-            user.min_distance = min_distance
-            user.min_angle = min_angle
 
             session.commit()
             return jsonify({"message": "Preferences updated successfully"}), 200
@@ -71,8 +67,6 @@ def user_preferences():
             # For GET requests, return current user preferences
             return jsonify({
                 "topic": user.topic,
-                "min_distance": user.min_distance,
-                "min_angle": user.min_angle,
             }), 200
 
 @app.route('/api/user/notifications', endpoint="user_notifications", methods=['GET'])
@@ -98,6 +92,119 @@ def user_notifications():
             ],
             "total_count": total_count
         }), 200
+
+@app.route('/api/user/filters', methods=['POST'])
+@jwt_required()  # Ensure the user is logged in
+def create_filter():
+    data = request.json
+    filter_name = data.get('filter_name', 'Unnamed Filter')
+    conditions = data.get('conditions', [])
+
+    if not conditions:
+        return jsonify({"error": "At least one condition is required"}), 400
+
+    with Session() as session:
+        user = get_user_by_id(session, get_jwt_identity())
+
+        # Determine the next evaluation order
+        next_order = session.query(Filter).filter_by(user_id=user.id).count() + 1
+
+        # Create the filter
+        new_filter = Filter(
+            user_id=user.id,
+            filter_name=filter_name,
+            evaluation_order=next_order
+        )
+        session.add(new_filter)
+        session.commit()
+
+        # Create conditions for the filter
+        for condition in conditions:
+            condition_type = condition['type']
+            condition_value = condition['value']
+            new_condition = Condition(
+                filter_id=new_filter.id,
+                condition_type=condition_type,
+                condition_value=condition_value
+            )
+            session.add(new_condition)
+
+        session.commit()
+
+        return jsonify({"filter_id": new_filter.id, "message": "Filter created successfully"}), 201
+
+
+@app.route('/api/user/filters', methods=['GET'])
+@jwt_required()  # Ensure the user is logged in
+def get_filters():
+    with Session() as session:
+        user = get_user_by_id(session, get_jwt_identity())
+        filters = session.query(Filter).filter_by(user_id=user.id).order_by(Filter.evaluation_order).all()
+
+        response = []
+        for filter in filters:
+            conditions = session.query(Condition).filter_by(filter_id=filter.id).all()
+            response.append({
+                "filter_id": filter.id,
+                "filter_name": filter.filter_name,
+                "evaluation_order": filter.evaluation_order,
+                "conditions": [{"type": cond.condition_type, "value": cond.condition_value} for cond in conditions]
+            })
+
+        return jsonify(response), 200
+
+
+@app.route('/api/user/filters/<int:filter_id>', methods=['PUT'])
+@jwt_required()  # Ensure the user is logged in
+def update_filter(filter_id):
+    data = request.json
+    filter_name = data.get('filter_name')
+    evaluation_order = data.get('evaluation_order')
+    conditions = data.get('conditions', [])
+
+    with Session() as session:
+        user = get_user_by_id(session, get_jwt_identity())
+        filter_to_update = session.query(Filter).filter_by(id=filter_id, user_id=user.id).first()
+
+        if not filter_to_update:
+            return jsonify({"error": "Filter not found"}), 404
+
+        if filter_name:
+            filter_to_update.filter_name = filter_name
+        if evaluation_order:
+            filter_to_update.evaluation_order = evaluation_order
+
+        # Clear existing conditions and add new ones
+        session.query(Condition).filter_by(filter_id=filter_to_update.id).delete()
+        for condition in conditions:
+            new_condition = Condition(
+                filter_id=filter_to_update.id,
+                condition_type=condition['type'],
+                condition_value=condition['value']
+            )
+            session.add(new_condition)
+
+        session.commit()
+
+        return jsonify({"message": "Filter updated successfully"}), 200
+
+
+@app.route('/api/user/filters/<int:filter_id>', methods=['DELETE'])
+@jwt_required()  # Ensure the user is logged in
+def delete_filter(filter_id):
+    with Session() as session:
+        user = get_user_by_id(session, get_jwt_identity())
+        filter_to_delete = session.query(Filter).filter_by(id=filter_id, user_id=user.id).first()
+
+        if not filter_to_delete:
+            return jsonify({"error": "Filter not found"}), 404
+
+        # Delete the filter and its conditions
+        session.query(Condition).filter_by(filter_id=filter_to_delete.id).delete()
+        session.delete(filter_to_delete)
+        session.commit()
+
+        return jsonify({"message": "Filter deleted successfully"}), 200
 
 # Serve static files for the web app
 @app.route('/', defaults={'path': ''})
