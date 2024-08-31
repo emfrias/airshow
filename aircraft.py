@@ -1,7 +1,7 @@
 import requests
 from models import LastLocation, Filter, Condition, User, Notification
 from config import Session, logger
-from closest_approach import closest_approach, predict_future_position, compute_angle_above_horizon, compute_2d_distance
+from closest_approach import closest_approach, predict_future_position, compute_angle_above_horizon, compute_2d_distance, calculate_bearing
 from sqlalchemy.orm import joinedload
 
 # Constants
@@ -101,7 +101,7 @@ def process_aircraft_for_user(session, user, location, aircraft_list):
                     "description": ac_data['desc'],
                     "hex": ac_data['hex'],
                     "time_to_closest": t_closest * PREDICT_MINUTES * 60,  # seconds to closest approach
-                    "bearing": ac_data['track'],  # Simplification: Bearing as track
+                    "bearing": calculate_bearing(location.lat, location.lon, closest_point[0], closest_point[1]),
                     "distance": min_distance
                 }
                 notifications.append(notification)

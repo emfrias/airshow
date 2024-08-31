@@ -3,6 +3,7 @@ from flask import Flask
 from api import app  # Import the Flask app from api.py
 from db import update_users_from_db, get_location_for_user, update_user_location
 from aircraft import get_aircraft_data, process_aircraft_for_user
+from closest_approach import bearing_to_compass
 from config import Session, logger
 from models import User, Notification, Filter, Condition
 import requests
@@ -93,10 +94,11 @@ def main():
                 if user.topic:
                     for notification in notifications:
                         if should_send_notification(session, user, notification['hex']):
+                            compass_direction = bearing_to_compass(notification['bearing'])
                             message = f"Aircraft {notification['description']} is approaching: " \
                                       f"{notification['distance']:.2f} miles away, " \
                                       f"{notification['time_to_closest']:.0f} seconds to closest approach, " \
-                                      f"bearing {notification['bearing']:.1f} degrees."
+                                      f"bearing {compass_direction}."
                             send_notification(session, user, notification['hex'], message)
                 else:
                     logger.debug(f"Not sending notifications for user {user.email} because they have no topic set")

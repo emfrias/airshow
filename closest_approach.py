@@ -1,4 +1,6 @@
 import numpy as np
+import math
+
 
 # Earth's radius in feet
 EARTH_RADIUS_FEET = 6371 * 3280.84  # Convert from km to feet
@@ -30,6 +32,30 @@ def compute_3d_distance(lat1, lon1, alt1, lat2, lon2, alt2):
 
 def compute_2d_distance(lat1, lon1, lat2, lon2):
     return haversine_distance(lat1, lon1, lat2, lon2)
+
+def calculate_bearing(lat1, lon1, lat2, lon2):
+    # Convert from degrees to radians
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    dlon = lon2 - lon1
+    x = math.sin(dlon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    initial_bearing = math.atan2(x, y)
+
+    # Convert radians to degrees
+    initial_bearing = math.degrees(initial_bearing)
+    bearing = (initial_bearing + 360) % 360
+    return bearing
+
+def bearing_to_compass(bearing):
+    compass_sectors = [
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+    ]
+    sector_size = 360 / len(compass_sectors)
+    index = int((bearing + sector_size / 2) // sector_size)
+    return compass_sectors[index % len(compass_sectors)]
+
 
 # Function to compute the angle above the horizon
 def compute_angle_above_horizon(user_pos, aircraft_pos):
