@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: flighttracking
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
+    init: true
     volumes:
       - ./db_data:/var/lib/postgresql/data
         # - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
@@ -22,6 +23,7 @@ services:
       DB_PORT: 5432
       DB_NAME: flighttracking
       DATABASE_URL: postgresql://user:password@db:5432/flighttracking
+    init: true
     volumes:
       - ./ui/dist:/webapp
     ports:
