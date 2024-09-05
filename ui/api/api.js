@@ -5,7 +5,7 @@ import { router } from 'expo-router'; // Assuming expo-router is used for naviga
 
 // Create axios instance
 const api = axios.create({
-  baseURL: '', // Replace with your API base URL
+  baseURL: 'https://airshow-devel.blthompson.photography', // Replace with your API base URL
   timeout: 5000, // Optional timeout
 });
 
@@ -22,9 +22,7 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     } else {
       // Prevent the request from being sent if there's no token
-      console.log('redirecting to login');
-      //const router = useRouter();
-      router.replace('/login'); // Redirect to the login page
+      router.replace('/login');
       return Promise.reject({ message: 'No token available' });
     }
     return config;
@@ -39,8 +37,7 @@ api.interceptors.response.use(
     // Handle unauthorized errors
     if (error.response && error.response.status === 401) {
       removeAuthToken(); // Clear the token from storage
-      //const router = useRouter();
-      router.replace('/login'); // Redirect to the login page
+      router.replace('/login');
     }
     return Promise.reject(error);
   }

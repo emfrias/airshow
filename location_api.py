@@ -3,6 +3,7 @@ from flask import request, jsonify
 from sqlalchemy.orm import sessionmaker
 from api import app
 from config import Session
+from datetime import datetime
 
 @app.route('/pub', methods=['POST'])
 def receive_location():
@@ -25,8 +26,9 @@ def receive_location():
                 location.lat = lat
                 location.lon = lon
                 location.alt = alt
+                location.reported_at = datetime.utcnow()
             else:
-                new_location = LastLocation(user_id=user.id, lat=lat, lon=lon, alt=alt)
+                new_location = LastLocation(user_id=user.id, lat=lat, lon=lon, alt=alt, reported_at=datetime.utcnow())
                 session.add(new_location)
 
             session.commit()

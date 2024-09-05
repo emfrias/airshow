@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import api from '../api/api'; // Import your axios instance with interceptors
+import api from '../../api/api'; // Import your axios instance with interceptors
 
 export default function Preferences() {
   const [topic, setTopic] = useState('');

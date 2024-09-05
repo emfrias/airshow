@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import User, Notification, Filter, Condition
+from models import User, Notification, Filter, Condition, LastLocation
 from config import Session
 from flask_jwt_extended import create_access_token, JWTManager, get_jwt_identity, jwt_required
+from sqlalchemy import desc
 from db import get_user_by_id
 import os
 
@@ -205,6 +206,24 @@ def delete_filter(filter_id):
         session.commit()
 
         return jsonify({"message": "Filter deleted successfully"}), 200
+
+@app.route('/api/user/location', methods=['GET'])
+@jwt_required()
+def get_user_location():
+    user_id = get_jwt_identity()
+    with Session() as session:
+        location = session.query(LastLocation).filter_by(user_id=user_id).order_by(desc(LastLocation.reported_at)).first()
+
+        if location:
+            return jsonify({
+                "latitude": location.lat,
+                "longitude": location.lon,
+                "altitude": location.alt,
+                "reported_at": location.reported_at
+            }), 200
+        else:
+            return jsonify({"message": "Location not found"}), 404
+
 
 # Serve static files for the web app
 @app.route('/', defaults={'path': ''})

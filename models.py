@@ -25,6 +25,7 @@ class LastLocation(Base):
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
     alt = Column(Float, nullable=False)
+    reported_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     user = relationship("User", back_populates="location")
 
 class Notification(Base):

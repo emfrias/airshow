@@ -1,7 +1,7 @@
 // notifications.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import api from '../api/api'; // Import your axios instance with interceptors
+import api from '../../api/api'; // Import your axios instance with interceptors
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
