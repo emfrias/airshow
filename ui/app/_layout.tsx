@@ -5,6 +5,9 @@ import { SplashScreen, Stack } from "expo-router";
 import { vars } from "nativewind";
 import { memo, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
+import { Provider as PaperProvider } from 'react-native-paper';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -45,11 +48,15 @@ export default memo(function RootLayout() {
 
 function RootLayoutNav() {
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
-      </Stack>
-    </View>
+    <PaperProvider>
+      <GestureHandlerRootView>
+        <View style={StyleSheet.absoluteFill}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+          </Stack>
+        </View>
+      </GestureHandlerRootView>
+    </PaperProvider>
   );
 }

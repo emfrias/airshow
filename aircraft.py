@@ -23,7 +23,7 @@ def process_aircraft_for_user(session, user, location, aircraft_list):
     notifications = []
 
     # Load all active filters for the user, ordered by their evaluation order
-    filters = session.query(Filter).options(joinedload(Filter.conditions)).filter_by(user_id=user.id).order_by(Filter.order).all()
+    filters = session.query(Filter).options(joinedload(Filter.conditions)).filter_by(user_id=user.id).order_by(Filter.evaluation_order).all()
 
     for aircraft in aircraft_list:
         if aircraft.get('alt_baro') == 'ground':

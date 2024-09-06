@@ -55,7 +55,7 @@ def main():
             filter = Filter(
                 user=user,
                 name="3D Distance and Angle Alert",
-                order=1
+                evaluation_order=1
             )
 
             # Add conditions to the filter

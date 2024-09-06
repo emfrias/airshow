@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import User, Notification, Filter, Condition, LastLocation
 from config import Session
@@ -11,6 +12,7 @@ app = Flask(__name__, static_folder='/webapp')
 app.config["JWT_SECRET_KEY"] = "super-secret"  # Change this!
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False # timedelta(hours=1)
 jwt = JWTManager(app)
+CORS(app)
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
@@ -98,7 +100,7 @@ def user_notifications():
 @jwt_required()  # Ensure the user is logged in
 def create_filter():
     data = request.json
-    filter_name = data.get('filter_name', 'Unnamed Filter')
+    name = data.get('name', 'Unnamed Filter')
     conditions = data.get('conditions', [])
 
     if not conditions:
@@ -113,7 +115,7 @@ def create_filter():
         # Create the filter
         new_filter = Filter(
             user_id=user.id,
-            filter_name=filter_name,
+            name=name,
             evaluation_order=next_order
         )
         session.add(new_filter)
@@ -122,17 +124,17 @@ def create_filter():
         # Create conditions for the filter
         for condition in conditions:
             condition_type = condition['type']
-            condition_value = condition['value']
+            value = condition['value']
             new_condition = Condition(
                 filter_id=new_filter.id,
                 condition_type=condition_type,
-                condition_value=condition_value
+                value=value
             )
             session.add(new_condition)
 
         session.commit()
 
-        return jsonify({"filter_id": new_filter.id, "message": "Filter created successfully"}), 201
+        return jsonify({"id": new_filter.id, "message": "Filter created successfully"}), 201
 
 
 @app.route('/api/user/filters', methods=['GET'])
@@ -146,10 +148,10 @@ def get_filters():
         for filter in filters:
             conditions = session.query(Condition).filter_by(filter_id=filter.id).all()
             response.append({
-                "filter_id": filter.id,
-                "filter_name": filter.filter_name,
+                "id": filter.id,
+                "name": filter.name,
                 "evaluation_order": filter.evaluation_order,
-                "conditions": [{"type": cond.condition_type, "value": cond.condition_value} for cond in conditions]
+                "conditions": [{"type": cond.condition_type, "value": cond.value} for cond in conditions]
             })
 
         return jsonify(response), 200
@@ -159,7 +161,7 @@ def get_filters():
 @jwt_required()  # Ensure the user is logged in
 def update_filter(filter_id):
     data = request.json
-    filter_name = data.get('filter_name')
+    name = data.get('name')
     evaluation_order = data.get('evaluation_order')
     conditions = data.get('conditions', [])
 
@@ -170,8 +172,8 @@ def update_filter(filter_id):
         if not filter_to_update:
             return jsonify({"error": "Filter not found"}), 404
 
-        if filter_name:
-            filter_to_update.filter_name = filter_name
+        if name:
+            filter_to_update.name = name
         if evaluation_order:
             filter_to_update.evaluation_order = evaluation_order
 
@@ -181,7 +183,7 @@ def update_filter(filter_id):
             new_condition = Condition(
                 filter_id=filter_to_update.id,
                 condition_type=condition['type'],
-                condition_value=condition['value']
+                value=condition['value']
             )
             session.add(new_condition)
 
