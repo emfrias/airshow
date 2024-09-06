@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View,  ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, IconButton, Checkbox } from 'react-native-paper';
+import { View, ScrollView } from 'react-native';
+import { Text, TextInput, Button, Card, IconButton, Checkbox, Menu, Provider, FAB } from 'react-native-paper';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import api from '../../api/api';
 
@@ -8,12 +8,19 @@ const CONDITION_TYPES = ['2d_distance', '3d_distance', 'aircraft_type', 'registr
 
 const FilterScreen = () => {
   const [filters, setFilters] = useState([]);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [dirtyFlags, setDirtyFlags] = useState({}); // Track which filters are dirty
 
   useEffect(() => {
     const fetchFilters = async () => {
       try {
         const response = await api.get('/api/user/filters');
-        setFilters(response.data);
+        const fetchedFilters = response.data;
+        setFilters(fetchedFilters);
+        // Initialize dirty flags to false for all filters
+        const flags = {};
+        fetchedFilters.forEach(f => (flags[f.id] = false));
+        setDirtyFlags(flags);
       } catch (error) {
         console.error("Error fetching filters", error);
       }
@@ -21,17 +28,39 @@ const FilterScreen = () => {
     fetchFilters();
   }, []);
 
+  // Mark a filter as dirty when modified
+  const markDirty = (filterId) => {
+    setDirtyFlags({ ...dirtyFlags, [filterId]: true });
+  };
+
+  // Save filter changes
   const handleSave = async (filter) => {
     try {
-      await api.put(`/user/filters/${filter.id}`, filter);
+      await api.put(`/api/user/filters/${filter.id}`, filter);
+      setDirtyFlags({ ...dirtyFlags, [filter.id]: false }); // Reset dirty flag on save
     } catch (error) {
       console.error("Error saving filter", error);
     }
   };
 
+  // Add new filter
+  const addNewFilter = async () => {
+    try {
+      const response = await api.post('/api/user/filters', {
+        name: 'My Filter',
+        conditions: [{ type: '2d_distance', value: { max_distance: 3 } }],
+      });
+      const newFilter = response.data;
+      setFilters([...filters, newFilter]);
+      setDirtyFlags({ ...dirtyFlags, [newFilter.id]: false });
+    } catch (error) {
+      console.error("Error adding new filter", error);
+    }
+  };
+
   const handleDelete = async (filterId) => {
     try {
-      await api.delete(`/user/filters/${filterId}`);
+      await api.delete(`/api/user/filters/${filterId}`);
       setFilters(filters.filter(f => f.id !== filterId));
     } catch (error) {
       console.error("Error deleting filter", error);
@@ -48,6 +77,7 @@ const FilterScreen = () => {
       }
       return f;
     }));
+    markDirty(filterId);
   };
 
   const removeCondition = (filterId, conditionIndex) => {
@@ -62,6 +92,7 @@ const FilterScreen = () => {
       }
       return f;
     }));
+    markDirty(filterId);
   };
 
   const updateConditionValue = (filterId, conditionIndex, value) => {
@@ -73,6 +104,12 @@ const FilterScreen = () => {
       }
       return f;
     }));
+    markDirty(filterId);
+  };
+
+  const updateFilterName = (filterId, newName) => {
+    setFilters(filters.map(f => f.id === filterId ? { ...f, name: newName } : f));
+    markDirty(filterId);
   };
 
   const renderCondition = (condition, filterId, conditionIndex) => {
@@ -85,7 +122,7 @@ const FilterScreen = () => {
             <TextInput
               keyboardType="numeric"
               value={condition.value.max_distance}
-              onChangeText={(text) => updateConditionValue(filterId, conditionIndex, {max_distance: text})}
+              onChangeText={(text) => updateConditionValue(filterId, conditionIndex, { max_distance: text })}
             />
           </View>
         );
@@ -116,7 +153,6 @@ const FilterScreen = () => {
         return (
           <View>
             <Text>Aircraft Category (Select multiple)</Text>
-            {/* Replace with your own list of categories */}
             <Checkbox.Item
               label="Category A"
               status={condition.value.includes('A') ? 'checked' : 'unchecked'}
@@ -136,7 +172,16 @@ const FilterScreen = () => {
 
   const renderItem = ({ item, drag }) => (
     <Card style={{ margin: 10 }}>
-      <Card.Title title={item.name} left={() => <IconButton icon="drag" onPress={drag} />} />
+      <Card.Title
+        title={
+          <TextInput
+            value={item.name}
+            onChangeText={(text) => updateFilterName(item.id, text)}
+            placeholder="Filter Name"
+          />
+        }
+        left={() => <IconButton icon="drag" onPress={drag} />}
+      />
       <Card.Content>
         <ScrollView>
           {item.conditions.map((condition, index) => (
@@ -147,12 +192,23 @@ const FilterScreen = () => {
               </Button>
             </View>
           ))}
-          <Button onPress={() => addCondition(item.id, '2d_distance')}>Add Distance Condition</Button>
-          <Button onPress={() => addCondition(item.id, 'aircraft_type')}>Add Other Condition</Button>
+          <Provider>
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={<Button onPress={() => setMenuVisible(true)}>Add Condition</Button>}
+            >
+              {CONDITION_TYPES.filter(type => !item.conditions.some(c => c.type === type)).map(type => (
+                <Menu.Item key={type} onPress={() => { addCondition(item.id, type); setMenuVisible(false); }} title={type.replace('_', ' ')} />
+              ))}
+            </Menu>
+          </Provider>
         </ScrollView>
       </Card.Content>
       <Card.Actions>
-        <Button onPress={() => handleSave(item)} mode="contained">Save</Button>
+        <Button onPress={() => handleSave(item)} mode="contained" disabled={!dirtyFlags[item.id]}>
+          Save
+        </Button>
         <Button onPress={() => handleDelete(item.id)} mode="outlined">Delete</Button>
       </Card.Actions>
     </Card>
@@ -165,11 +221,21 @@ const FilterScreen = () => {
         data={filters}
         renderItem={renderItem}
         keyExtractor={(item) => item.id.toString()}
-        onDragEnd={({ data }) => setFilters(data)}
+        onDragEnd={({ data }) => {
+          setFilters(data);
+          data.forEach((filter, index) => {
+            filter.evaluation_order = index + 1;
+            markDirty(filter.id);
+          });
+        }}
+      />
+      <FAB
+        style={{ position: 'absolute', margin: 16, right: 0, bottom: 0 }}
+        icon="plus"
+        onPress={addNewFilter}
       />
     </View>
   );
 };
 
 export default FilterScreen;
-
