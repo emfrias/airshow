@@ -36,6 +36,7 @@ class Notification(Base):
     timestamp = Column(DateTime, nullable=False)
     aircraft_hex = Column(String(10), nullable=False)
     notification_text = Column(Text, nullable=False)
+    filter_name = Column(String, nullable=False)
 
     user = relationship('User', back_populates='notifications')
 

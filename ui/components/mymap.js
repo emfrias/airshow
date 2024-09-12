@@ -1,3 +1,3 @@
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { PROVIDER_DEFAULT, PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 export default MapView;
-export { Marker };
+export { PROVIDER_DEFAULT, PROVIDER_GOOGLE, Marker };

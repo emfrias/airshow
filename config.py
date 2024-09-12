@@ -5,6 +5,7 @@ import os
 
 import logging
 
+UPDATE_RATE = 60 # seconds
 
 def get_database_url():
     db_type = os.getenv('DB_TYPE', 'postgresql')

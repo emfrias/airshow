@@ -81,7 +81,7 @@ def predict_future_position(lat, lon, altitude, groundspeed, track, minutes):
 
     return new_lat, new_lon, altitude
 
-# Function to find the closest point of approach, returns minimum distance in nautical miles
+# Function to find the closest point of approach, returns minimum distance in nautical miles and time in fraction of prediction window
 def closest_approach(user_lat, user_lon, user_alt, aircraft_lat, aircraft_lon, aircraft_alt, future_lat, future_lon, future_alt):
     # Sampling points along the aircraft's path to estimate closest approach
     num_samples = 100
